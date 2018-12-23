@@ -722,10 +722,34 @@ ConnectionApi::Status ConnectionApi::status() const
     return d->status();
 }
 
+int ConnectionApi::reconnectionTime()
+{
+    Q_D(const ConnectionApi);
+    if ((d->status() != StatusWaitForConnection) || !d->m_connectionQueued) {
+        return -1;
+    }
+    if (!d->m_queuedConnectionTimer) {
+        return 0;
+    }
+    return d->m_queuedConnectionTimer->remainingTime();
+}
+
 void ConnectionApi::disconnectFromServer()
 {
     Q_D(ConnectionApi);
     return d->disconnectFromServer();
+}
+
+bool ConnectionApi::reconnectRightNow()
+{
+    Q_D(ConnectionApi);
+
+    if (reconnectionTime() <= 0) {
+        return false;
+    }
+
+    d->m_queuedConnectionTimer->start(0);
+    return true;
 }
 
 Telegram::Client::AuthOperation *ConnectionApi::startAuthentication()

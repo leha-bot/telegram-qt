@@ -58,9 +58,14 @@ public:
     bool isSignedIn() const;
     Status status() const;
 
+    int reconnectionTime();
+
     AuthOperation *startAuthentication();
     AuthOperation *checkIn();
     void disconnectFromServer();
+
+public Q_SLOTS:
+    bool reconnectRightNow();
 
 Q_SIGNALS:
     void statusChanged(Telegram::Client::ConnectionApi::Status status,
