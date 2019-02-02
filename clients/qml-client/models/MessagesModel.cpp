@@ -305,6 +305,10 @@ void MessagesModel::setQmlClient(DeclarativeClient *qmlClient)
 
     connect(client()->messagingApi(), &MessagingApi::messageReceived,
             this, &MessagesModel::onMessageReceived);
+    connect(client()->messagingApi(), &MessagingApi::messageEnqueued,
+            this, &MessagesModel::onMessageQueued);
+    connect(client()->messagingApi(), &MessagingApi::messageSent,
+            this, &MessagesModel::onMessageSent);
 }
 
 //const MessagesModel::SMessage *MessagesModel::messageAt(quint32 messageIndex) const
@@ -622,6 +626,54 @@ void MessagesModel::onMessageReceived(const Peer peer, quint32 messageId)
         return;
     }
     insertMessages({messageId});
+}
+
+void MessagesModel::onMessageQueued(const Telegram::Peer peer, quint64 messageRandomId,
+                                    const QString &message)
+{
+    if (peer != m_peer) {
+        return;
+    }
+    MessageEvent *event = new MessageEvent();
+    event->fromId = client()->dataStorage()->selfUserId();
+    event->text = message;
+    event->sentMessageId = messageRandomId;
+    event->sentTimestamp = static_cast<quint32>(QDateTime::currentMSecsSinceEpoch() / 1000);
+
+    beginInsertRows(QModelIndex(), m_events.count(), m_events.count() + m_events.count());
+    m_events.append(event);
+    endInsertRows();
+}
+
+void MessagesModel::onMessageSent(const Peer peer, quint64 sentRandomId, quint32 acceptedMessageId)
+{
+    qDebug() << Q_FUNC_INFO << "peer:" << peer << "messageId:" << acceptedMessageId;
+    if (peer != m_peer) {
+        return;
+    }
+
+    for (int i = m_events.count() - 1; i >= 0; --i) {
+        Event *event = m_events.at(i);
+        if (event->type != Event::Type::Message) {
+            continue;
+        }
+        MessageEvent *messageEvent = static_cast<MessageEvent *>(event);
+        if (messageEvent->sentMessageId != sentRandomId) {
+            continue;
+        }
+
+        Telegram::Message m;
+        if (!client()->dataStorage()->getMessage(&m, m_peer, acceptedMessageId)) {
+            qWarning() << Q_FUNC_INFO << "Sent message" << sentRandomId << "/" << acceptedMessageId
+                       << "for peer" << peer << "not found";
+            break;
+        }
+        messageEvent->receivedTimestamp = m.timestamp;
+        QModelIndex left = index(i, 0);
+        QModelIndex right = index(i, columnCount());
+        emit dataChanged(left, right, {Qt::DisplayRole, static_cast<int>(Role::ReceivedTimestamp)});
+        break;
+    }
 }
 
 MessagesModel::Role MessagesModel::intToRole(int value)
