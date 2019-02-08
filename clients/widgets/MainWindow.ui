@@ -226,7 +226,11 @@
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QLineEdit" name="phoneNumber"/>
+          <widget class="QLineEdit" name="phoneNumber">
+           <property name="text">
+            <string>79002848028</string>
+           </property>
+          </widget>
          </item>
          <item row="1" column="5">
           <widget class="QLineEdit" name="confirmationCode">
@@ -907,7 +911,7 @@
      <x>0</x>
      <y>0</y>
      <width>1360</width>
-     <height>20</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
