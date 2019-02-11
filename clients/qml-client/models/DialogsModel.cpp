@@ -9,9 +9,14 @@
 
 #include "DeclarativeClient.hpp"
 
+#include "ContactsApi.hpp"
+#include "ContactList.hpp"
+
 #include <QDateTime>
 
 #include <QDebug>
+
+//#define CONTACTLIST_AS_DIALOGS
 
 namespace Telegram {
 
@@ -103,6 +108,9 @@ QVariant DialogsModel::getData(int index, DialogsModel::Role role) const
 
 QVariantMap DialogsModel::getDialogLastMessageData(const DialogEntry &dialog) const
 {
+    if (dialog.lastChatMessage.id == 0) {
+        return {};
+    }
     QString text;
     if (dialog.lastChatMessage.type == TelegramNamespace::MessageTypeText) {
         text = dialog.lastChatMessage.text;
@@ -142,10 +150,19 @@ void DialogsModel::setQmlClient(DeclarativeClient *target)
 void DialogsModel::populate()
 {
     m_list = client()->messagingApi()->getDialogList();
+#ifdef CONTACTLIST_AS_DIALOGS
+    m_list2 = client()->contactsApi()->getContactList();
+    m_list->becomeReady();
+    connect(m_list2->becomeReady(), &Telegram::PendingOperation::finished, this, &DialogsModel::onListReady);
+    if (m_list2->isReady()) {
+        onListReady();
+    }
+#else
     connect(m_list->becomeReady(), &Telegram::PendingOperation::finished, this, &DialogsModel::onListReady);
     if (m_list->isReady()) {
         onListReady();
     }
+#endif
 }
 
 QString getPeerAlias(const Telegram::Peer &peer, const Telegram::Client::Client *client)
@@ -167,13 +184,24 @@ QString getPeerAlias(const Telegram::Peer &peer, const Telegram::Client::Client 
 void DialogsModel::onListReady()
 {
     qWarning() << Q_FUNC_INFO;
+#ifdef CONTACTLIST_AS_DIALOGS
+    connect(m_list2, &ContactList::listChanged, this, &DialogsModel::onListChanged);
+#else
     connect(m_list, &DialogList::listChanged, this, &DialogsModel::onListChanged);
+#endif // CONTACTLIST_AS_DIALOGS
     beginResetModel();
     m_dialogs.clear();
+#ifdef CONTACTLIST_AS_DIALOGS
+    const QVector<Telegram::Peer> peers = m_list2->peers();
+#else
     const QVector<Telegram::Peer> peers = m_list->peers();
+#endif // CONTACTLIST_AS_DIALOGS
     for (const Telegram::Peer &peer : peers) {
         addPeer(peer);
     }
+#ifdef CONTACTLIST_AS_DIALOGS
+    addPeer(Peer::fromUserId(client()->dataStorage()->selfUserId()));
+#endif // CONTACTLIST_AS_DIALOGS
     endResetModel();
 }
 

@@ -11,6 +11,7 @@ namespace Telegram {
 
 namespace Client {
 
+class ContactList;
 class DeclarativeClient;
 class DialogList;
 
@@ -96,6 +97,7 @@ private:
     static Role indexToRole(const QModelIndex &index, int role = Qt::DisplayRole);
     QVector<DialogEntry> m_dialogs;
     DialogList *m_list = nullptr;
+    ContactList *m_list2 = nullptr;
 
 };
 
