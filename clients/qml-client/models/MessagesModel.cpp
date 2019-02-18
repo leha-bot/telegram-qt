@@ -547,6 +547,19 @@ void MessagesModel::fetchNext()
 {
 }
 
+void MessagesModel::readAllMessages()
+{
+    Client *c = client();
+    DialogInfo dialogInfo;
+    if (!c->dataStorage()->getDialogInfo(&dialogInfo, m_peer)) {
+        return;
+    }
+    bool hasUnread = dialogInfo.lastMessageId() > dialogInfo.readInboxMaxId();
+    if (hasUnread) {
+        c->messagingApi()->readHistory(m_peer, dialogInfo.lastMessageId());
+    }
+}
+
 void MessagesModel::insertMessages(const QVector<quint32> &messageIds)
 {
     QVector<quint32> messagesToInsertNow = messageIds;
