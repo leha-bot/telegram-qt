@@ -58,6 +58,8 @@ public:
     bool isSignedIn() const;
     Status status() const;
 
+    AuthOperation *getAuthenticationOperation() const;
+
     int reconnectionTime();
 
     AuthOperation *startAuthentication();

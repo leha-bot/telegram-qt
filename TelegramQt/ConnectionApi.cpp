@@ -722,6 +722,12 @@ ConnectionApi::Status ConnectionApi::status() const
     return d->status();
 }
 
+AuthOperation *ConnectionApi::getAuthenticationOperation() const
+{
+    Q_D(const ConnectionApi);
+    return d->getAuthenticationOperation();
+}
+
 int ConnectionApi::reconnectionTime()
 {
     Q_D(const ConnectionApi);
