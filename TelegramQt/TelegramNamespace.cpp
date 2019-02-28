@@ -315,6 +315,9 @@ QByteArray MessageMediaInfo::getCachedPhoto() const
     case TLValue::MessageMediaPhoto:
         sizes = &d->photo.sizes;
         break;
+    case TLValue::MessageMediaWebPage:
+        sizes = &d->webpage.photo.sizes;
+        break;
     default:
         return QByteArray();
     }
