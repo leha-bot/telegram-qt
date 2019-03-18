@@ -35,7 +35,6 @@ option(BUILD_GENERATOR "Build protocol code generator" FALSE)
 # Add an option for dev build
 option(DEVELOPER_BUILD "Enable extra debug codepaths, like asserts and extra output" FALSE)
 
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(QT_VERSION_MAJOR "5")
 set(QT_COMPONENTS Core Network)
 
