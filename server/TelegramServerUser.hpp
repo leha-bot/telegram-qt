@@ -135,6 +135,9 @@ public:
     ImageDescriptor getCurrentImage() const override;
     void updateImage(const ImageDescriptor &image);
 
+    const NotificationSettings *getNotificationSettings(const Peer &peer);
+    void setNotificationSettings(const Peer &peer, const NotificationSettings &settings);
+
     bool hasPassword() const { return !m_passwordSalt.isEmpty() && !m_passwordHash.isEmpty(); }
     QByteArray passwordSalt() const { return m_passwordSalt; }
     QByteArray passwordHash() const { return m_passwordHash; }
