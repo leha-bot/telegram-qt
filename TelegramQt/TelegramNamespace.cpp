@@ -1142,4 +1142,35 @@ QVector<quint32> Utils::toIdList(const PeerList &peerList)
     return idList;
 }
 
+const NotificationSettingsData *NotificationSettingsData::getDefaultSettingsData()
+{
+    static const NotificationSettingsData settings;
+    return &settings;
+}
+
+NotificationSettings::NotificationSettings() :
+    d(new Private())
+{
+}
+
+quint32 NotificationSettings::flags() const
+{
+    return d->flags;
+}
+
+QString NotificationSettings::sound() const
+{
+    return d->sound;
+}
+
+quint32 NotificationSettings::muteUntil() const
+{
+    return d->muteUntil;
+}
+
+bool NotificationSettings::isMuteForever() const
+{
+    return muteUntil() == NotificationSettingsData::c_muteForever;
+}
+
 } // Telegram namespace

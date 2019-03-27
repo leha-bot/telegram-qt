@@ -48,6 +48,9 @@ public:
     bool getMessage(Message *message, const Telegram::Peer &peer, quint32 messageId);
     bool getMessageMediaInfo(MessageMediaInfo *info, const Telegram::Peer &peer, quint32 messageId);
 
+    bool getNotificationSettings(NotificationSettings *settings, const Peer &peer) const;
+    // void setNotificationSettings(const Peer &peer, const NotificationSettings &settings);
+
 protected:
     explicit DataStorage(QObject *parent = nullptr);
 

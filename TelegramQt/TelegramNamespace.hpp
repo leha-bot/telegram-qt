@@ -436,6 +436,30 @@ protected:
     Private *d;
 };
 
+class NotificationSettings
+{
+public:
+    // Peer notification settings exist independent of dialogs
+
+    NotificationSettings();
+
+    enum Flags {
+        ShowPreviews = 1 << 0,
+        Silent = 1 << 1,
+    };
+    quint32 flags() const;
+    QString sound() const;
+    quint32 muteUntil() const;
+
+    bool showPreviews() const { return flags() & ShowPreviews; }
+    bool silent() const { return flags() & Silent; }
+    bool isMuteForever() const;
+
+    struct Private;
+protected:
+    Private *d;
+};
+
 namespace Utils
 {
 

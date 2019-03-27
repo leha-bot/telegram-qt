@@ -185,6 +185,11 @@ bool DataStorage::getMessageMediaInfo(MessageMediaInfo *info, const Peer &peer, 
     return true;
 }
 
+bool DataStorage::getNotificationSettings(NotificationSettings *settings, const Peer &peer) const
+{
+    return true;
+}
+
 DataStorage::DataStorage(DataStoragePrivate *priv, QObject *parent)
     : QObject(parent),
       d(priv)
@@ -393,6 +398,12 @@ void DataInternalApi::processData(const TLMessagesDialogs &dialogs)
         dialog->pts = tlDialog.pts;
         dialog->draftText = tlDialog.draft.message;
 
+        NotificationSettingsData settings;
+        settings.flags = tlDialog.notifySettings.flags;
+        settings.muteUntil = tlDialog.notifySettings.muteUntil;
+        settings.sound = tlDialog.notifySettings.sound;
+        setNotificationSettings(peer, settings);
+
         const TLMessage *message = getMessage(peer, tlDialog.topMessage);
         if (message) {
             dialog->topMessage = message->id;
@@ -589,6 +600,24 @@ UserDialog *DataInternalApi::ensureDialog(const Peer &peer)
         m_dialogs.append(dialog);
     }
     return dialog;
+}
+
+const NotificationSettingsData *DataInternalApi::getNotificationSettings(const Peer &peer)
+{
+    const NotificationSettingsData *result = m_notificationSettings.value(peer);
+    if (!result) {
+        return NotificationSettingsData::getDefaultSettingsData();
+    }
+    return result;
+}
+
+void DataInternalApi::setNotificationSettings(const Peer &peer, const NotificationSettingsData &settings)
+{
+    if (!m_notificationSettings.contains(peer)) {
+        m_notificationSettings.insert(peer, new NotificationSettingsData(settings));
+    } else {
+        *m_notificationSettings[peer] = settings;
+    }
 }
 
 DialogState *DataInternalApi::ensureDialogState(const Peer peer)

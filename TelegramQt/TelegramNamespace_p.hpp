@@ -23,6 +23,25 @@
 
 namespace Telegram {
 
+struct NotificationSettingsData
+{
+    // Peer notification settings exist independent of dialogs
+    enum Flags {
+        ShowPreviews = 1 << 0,
+        Silent = 1 << 1,
+    };
+    bool showPreviews() const { return flags & ShowPreviews; }
+    bool silent() const { return flags & Silent; }
+
+    static constexpr quint32 c_muteForever = ~quint32(0) >> 1; // 2147483647
+
+    quint32 flags = 0;
+    quint32 muteUntil = 0;
+    QString sound;
+
+    static const NotificationSettingsData *getDefaultSettingsData();
+};
+
 struct UserDialog
 {
     Telegram::Peer peer;
@@ -131,6 +150,11 @@ struct ChatInfo::Private : public TLChat
 struct DialogInfo::Private : public UserDialog
 {
     static Private *get(DialogInfo *info) { return info->d; }
+};
+
+struct NotificationSettings::Private : public NotificationSettingsData
+{
+    static Private *get(NotificationSettings *info) { return info->d; }
 };
 
 TelegramNamespace::ContactStatus getApiContactStatus(TLValue status);
