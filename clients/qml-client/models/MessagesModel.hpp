@@ -265,7 +265,11 @@ Q_SIGNALS:
     void peerChanged(Telegram::Peer peer);
 
 protected:
-    void insertMessages(const QVector<quint32> &messageIds);
+    enum Mode {
+        CallModelApi,
+        BypassModelApi,
+    };
+    void insertMessages(const QVector<quint32> &messageIds, Mode mode = CallModelApi);
 
     void processHistoryMessages(const QVector<quint32> &messageIds);
     void onMessageReceived(const Telegram::Peer peer, quint32 messageId);

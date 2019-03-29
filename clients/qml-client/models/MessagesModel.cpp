@@ -504,26 +504,25 @@ void MessagesModel::onPeerChanged()
     beginResetModel();
     qDeleteAll(m_events);
     m_events.clear();
-    m_oldestMessageId = 0;
+
+    if (m_peer.isValid()) {
+        DialogInfo info;
+        if (!dataStorage()->getDialogInfo(&info, m_peer)) {
+            qWarning() << Q_FUNC_INFO << "No dialog!";
+        }
+
+        m_oldestMessageId = info.lastMessageId();
+
+        if (m_oldestMessageId) {
+            insertMessages({m_oldestMessageId}, BypassModelApi);
+        } else {
+            qWarning() << Q_FUNC_INFO << "A dialog without top message!" << m_peer;
+        }
+    } else {
+        m_oldestMessageId = 0;
+    }
+
     endResetModel();
-
-    qWarning() << Q_FUNC_INFO << m_oldestMessageId << "(1)";
-
-    if (!m_peer.isValid()) {
-        return;
-    }
-
-    DialogInfo info;
-    if (!dataStorage()->getDialogInfo(&info, m_peer)) {
-        qWarning() << Q_FUNC_INFO << "No dialog!";
-    }
-
-    m_oldestMessageId = info.lastMessageId();
-    qWarning() << Q_FUNC_INFO << m_oldestMessageId << "(2)";
-
-    insertMessages({m_oldestMessageId});
-
-    fetchPrevious();
 }
 
 void MessagesModel::fetchPrevious()
@@ -568,7 +567,7 @@ void MessagesModel::readAllMessages()
     }
 }
 
-void MessagesModel::insertMessages(const QVector<quint32> &messageIds)
+void MessagesModel::insertMessages(const QVector<quint32> &messageIds, Mode mode)
 {
     QVector<quint32> messagesToInsertNow = messageIds;
 
@@ -588,9 +587,15 @@ void MessagesModel::insertMessages(const QVector<quint32> &messageIds)
         newEvents.prepend(event);
     }
 
-    beginInsertRows(QModelIndex(), m_events.count(), m_events.count() + newEvents.count() - 1);
+    if (mode == CallModelApi) {
+        beginInsertRows(QModelIndex(), m_events.count(), m_events.count() + newEvents.count() - 1);
+    }
+
     m_events.append(newEvents);
-    endInsertRows();
+
+    if (mode == CallModelApi) {
+        endInsertRows();
+    }
 }
 
 void MessagesModel::processHistoryMessages(const QVector<quint32> &messageIds)
