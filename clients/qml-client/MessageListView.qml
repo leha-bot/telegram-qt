@@ -88,6 +88,8 @@ ListView {
 
         if (keepVisibleY == viewKeeperValue.keepAtBottom) {
             positionViewAtEnd()
+            Qt.callLater(messageView_.positionViewAtEnd())
+            return
         }
         if (keepVisibleY < 0) {
             return
