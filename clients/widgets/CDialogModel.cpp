@@ -131,11 +131,11 @@ QVariant CDialogModel::data(int dialogIndex, CDialogModel::Role role) const
     case Role::PeerId:
         return dialog->peer().id;
     case Role::MuteUntil:
-        return dialog->muteUntil();
+        return 0; //dialog->muteUntil();
     case Role::MuteUntilDate:
-        if (dialog->muteUntil()) {
-            return QDateTime::fromMSecsSinceEpoch(dialog->muteUntil() * 1000);
-        }
+        // if (dialog->muteUntil()) {
+        //     return QDateTime::fromMSecsSinceEpoch(dialog->muteUntil() * 1000);
+        // }
         return QVariant();
         // PeerModel roles:
     case Role::PeerName:

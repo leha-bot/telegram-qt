@@ -72,13 +72,13 @@ ApplicationWindow {
 
     Telegram.RsaKey {
         id: localServerKey
-        fileName: StandardPaths.writableLocation(StandardPaths.HomeLocation) + "/TelegramServer/test.key"// "public_key.pem"
+        fileName: "/tmp/TelegramTestServer.YWSjxy.pem"//StandardPaths.writableLocation(StandardPaths.HomeLocation) + "/TelegramServer/test.key"// "public_key.pem"
     }
     Telegram.Settings {
         id: localSettings
         serverOptions: [
             Telegram.ServerOption {
-                address: "192.168.1.183" //"127.0.0.1"
+                address: "127.0.0.1"
                 port: 10443
             }
         ]

@@ -14,6 +14,7 @@
 
 #include "TLTypesDebug.hpp"
 
+#include <QTimer>
 #include <QLoggingCategory>
 
 namespace Telegram {

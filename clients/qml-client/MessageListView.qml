@@ -105,7 +105,7 @@ ListView {
         }
 
         if (keepVisibleY == viewKeeperValue.keepAtBottom) {
-            Qt.callLater(messageView_.positionViewAtEnd())
+            Qt.callLater(messageView_.positionViewAtEnd)
             return
         }
 
