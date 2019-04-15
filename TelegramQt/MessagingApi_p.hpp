@@ -52,6 +52,8 @@ public:
     quint64 sendMessage(const Telegram::Peer peer, const QString &message, const MessagingApi::SendOptions &options);
     void setMessageRead(const Telegram::Peer peer, quint32 messageId);
 
+    void setMessageAction(const Peer peer, TelegramNamespace::MessageAction action);
+
     void onMessageSendResult(quint64 randomMessageId, MessagesRpcLayer::PendingUpdates *rpcOperation);
     void onSentMessageIdResolved(quint64 randomMessageId, quint32 messageId);
 

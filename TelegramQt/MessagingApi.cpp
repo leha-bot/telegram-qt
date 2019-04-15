@@ -78,6 +78,18 @@ void MessagingApiPrivate::setMessageRead(const Peer peer, quint32 messageId)
     }
 }
 
+void MessagingApiPrivate::setMessageAction(const Peer peer, TelegramNamespace::MessageAction action)
+{
+    if (!peer.isValid()) {
+        return;
+    }
+    TLInputPeer inputPeer = dataInternalApi()->toInputPeer(peer);
+    TLSendMessageAction act;
+    act.tlType = Telegram::Utils::toTLValue(action);
+
+    messagesLayer()->setTyping(inputPeer, act);
+}
+
 void MessagingApiPrivate::onMessageSendResult(quint64 randomMessageId, MessagesRpcLayer::PendingUpdates *rpcOperation)
 {
     TLUpdates result;
@@ -364,7 +376,8 @@ quint64 MessagingApi::forwardMessage(const Peer peer, const Peer fromPeer, quint
 
 void MessagingApi::setMessageAction(const Peer peer, TelegramNamespace::MessageAction action)
 {
-
+    Q_D(MessagingApi);
+    return d->setMessageAction(peer, action);
 }
 
 void MessagingApi::readHistory(const Peer peer, quint32 messageId)
