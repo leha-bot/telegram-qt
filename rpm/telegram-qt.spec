@@ -54,6 +54,9 @@ Requires:   %{name}-qt5-declarative%{?_isa} = %{version}-%{release}
 %description qt5-declarative-devel
 %{summary}.
 
+# Define _qt5_qmldir if unset
+%{!?_qt5_qmldir:%define _qt5_qmldir %{_qt5_libdir}/qml}
+
 %prep
 %setup -q
 
@@ -66,13 +69,15 @@ cd build
     -DBUILD_VERSION="%{version}" \
     ..
 
-make %{?_smp_mflags}
+%make_build
 
 %install
 cd build
 
-rm -rf %{buildroot}
 %make_install
+
+%clean
+rm -rf %{buildroot}
 
 %post qt5 -p /sbin/ldconfig
 %postun qt5 -p /sbin/ldconfig
@@ -99,12 +104,12 @@ rm -rf %{buildroot}
 
 %files qt5-declarative
 %defattr(-,root,root,-)
-%{_libdir}/qt5/qml/TelegramQt/qmldir
-%{_libdir}/qt5/qml/TelegramQt/libTelegramQmlPlugin.so
+%{_qt5_qmldir}/TelegramQt/qmldir
+%{_qt5_qmldir}/TelegramQt/libTelegramQmlPlugin.so
 %{_libdir}/libTelegramQt5Qml.so.%{version_major}.%{version_minor}
 %{_libdir}/libTelegramQt5Qml.so.%{version_major}.%{version_minor}.%{version_patch}
 
 %files qt5-declarative-devel
 %defattr(-,root,root,-)
-%{_libdir}/qt5/qml/TelegramQt/plugins.qmltypes
+%{_qt5_qmldir}/TelegramQt/plugins.qmltypes
 %{_libdir}/libTelegramQt5Qml.so
