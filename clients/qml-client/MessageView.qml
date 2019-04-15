@@ -101,12 +101,15 @@ Frame {
     Timer {
         id: readTimer
         interval: 500
+        repeat: false
         onTriggered: {
             messagesModel.readAllMessages()
 
             if (peer.isValid()) {
-                console.log("Model peer is valid!")
+//                console.log("Model peer is valid!")
+                // listView.positionViewAtEnd()
             }
+
         }
     }
 }

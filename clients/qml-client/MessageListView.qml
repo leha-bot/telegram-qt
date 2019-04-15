@@ -36,15 +36,19 @@ ListView {
         if (keepVisibleY < 0) {
             console.warn("keepIndexY(): The index is above the viewport!")
         }
+        console.trace()
+        console.log("keepViewAtIndexY" + index + " " + keepVisibleY)
     }
 
     function resetViewPositionKeeper()
     {
+        console.trace()
         keepVisibleY = viewKeeperValue.unset
     }
 
     function keepViewAtBottom()
     {
+        console.trace()
         keepVisibleY = viewKeeperValue.keepAtBottom
     }
 
@@ -53,7 +57,9 @@ ListView {
         if (atYEnd) {
             keepViewAtBottom()
         } else {
-            keepViewAtIndexY(count > 1 ? 1 : 0)
+            if (keepVisibleY == viewKeeperValue.unset) {
+                keepViewAtIndexY(count > 1 ? 1 : 0)
+            }
         }
         model.fetchPrevious()
     }
@@ -80,17 +86,29 @@ ListView {
     onHeightChanged: syncViewPosition()
     onMovementStarted: resetViewPositionKeeper()
 
+    onContentYChanged: {
+        console.trace()
+        console.log("New contentY: " + contentY)
+    }
+
     function syncViewPosition()
     {
         if (inMotion) {
             return
         }
+        forceLayout()
+
+        console.log("ContentY: " + messageView_.contentY + " " + "contentHeight: " + messageView_.contentHeight + "keep: " + keepVisibleY)
+
+        if (messageView_.contentHeight < messageView_.height) {
+            keepViewAtBottom()
+        }
 
         if (keepVisibleY == viewKeeperValue.keepAtBottom) {
-            positionViewAtEnd()
             Qt.callLater(messageView_.positionViewAtEnd())
             return
         }
+
         if (keepVisibleY < 0) {
             return
         }

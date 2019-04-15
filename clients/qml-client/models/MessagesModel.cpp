@@ -561,10 +561,12 @@ void MessagesModel::readAllMessages()
     if (!c->dataStorage()->getDialogInfo(&dialogInfo, m_peer)) {
         return;
     }
-    bool hasUnread = dialogInfo.lastMessageId() > dialogInfo.readInboxMaxId();
-    if (hasUnread) {
-        c->messagingApi()->readHistory(m_peer, dialogInfo.lastMessageId());
-    }
+
+    c->messagingApi()->setMessageAction(m_peer, TelegramNamespace::MessageActionChooseContact);
+//    bool hasUnread = dialogInfo.lastMessageId() > dialogInfo.readInboxMaxId();
+//    if (hasUnread) {
+//        c->messagingApi()->readHistory(m_peer, dialogInfo.lastMessageId());
+//    }
 }
 
 void MessagesModel::insertMessages(const QVector<quint32> &messageIds, Mode mode)
