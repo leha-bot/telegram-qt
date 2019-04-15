@@ -67,6 +67,8 @@ bool LocalCluster::start()
         m_authProvider = new Authorization::DefaultProvider();
     }
 
+    m_storage->loadData();
+
     for (const DcOption &dc : m_serverConfiguration.dcOptions) {
         if (!dc.id) {
             qCCritical(c_loggingClusterCategory) << Q_FUNC_INFO << "Invalid configuration: DC id is null.";
@@ -105,6 +107,9 @@ bool LocalCluster::start()
             hasFails = true;
         }
     }
+    for (Server *server : m_serverInstances) {
+        server->loadData();
+    }
     return !hasFails;
 }
 
@@ -112,7 +117,9 @@ void LocalCluster::stop()
 {
     for (Server *server : m_serverInstances) {
         server->stop();
+        server->saveData();
     }
+    m_storage->saveData();
 }
 
 LocalUser *LocalCluster::addUser(const QString &identifier, quint32 dcId)
