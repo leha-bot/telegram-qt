@@ -53,6 +53,7 @@ struct UserDialog
     quint32 unreadCount = 0;
     quint32 unreadMentionsCount = 0;
     quint32 pts = 0;
+    quint32 flags = 0;
 };
 
 struct MessageMediaInfo::Private : public TLMessageMedia
