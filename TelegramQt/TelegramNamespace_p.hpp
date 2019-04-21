@@ -44,6 +44,7 @@ struct NotificationSettingsData
 
 struct UserDialog
 {
+    using Flags = TLDialog::Flags;
     Telegram::Peer peer;
     QString draftText;
     quint32 topMessage = 0;

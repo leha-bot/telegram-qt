@@ -87,8 +87,8 @@ ListView {
     onMovementStarted: resetViewPositionKeeper()
 
     onContentYChanged: {
-        console.trace()
-        console.log("New contentY: " + contentY)
+//        console.trace()
+//        console.log("New contentY: " + contentY)
     }
 
     function syncViewPosition()

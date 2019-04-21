@@ -9,6 +9,8 @@
 
 namespace Telegram {
 
+struct UserDialog;
+
 namespace Client {
 
 class ContactList;
@@ -21,18 +23,19 @@ class DialogsModel : public QAbstractTableModel, public DeclarativeClientMixin
     Q_PROPERTY(Telegram::Client::DeclarativeClient *client READ qmlClient WRITE setQmlClient NOTIFY clientChanged)
 public:
     struct DialogEntry {
-        Telegram::Peer peer;
-        QString typeIcon;
+        TelegramNamespace::ChatType chatType;
         QString name;
         QString formattedLastMessage;
         Telegram::Message lastChatMessage;
-        quint32 unreadCount = 0;
+        UserDialog *internal = nullptr;
     };
 
     enum class Column {
         PeerType,
         PeerId,
         PeerName,
+        ChatType,
+        IsPinned,
         Picture, // Photo (in terms of Telegram)
         FormattedLastMessage,
         MuteUntil,
@@ -43,8 +46,9 @@ public:
 
     enum class Role {
         Peer,
-        PeerTypeIcon,
         DisplayName,
+        ChatType,
+        IsPinned,
         Picture, // Photo (in terms of Telegram)
         LastMessage,
         FormattedLastMessage,
@@ -91,6 +95,7 @@ private slots:
     void addPeer(const Telegram::Peer &peer);
 
 private:
+    TelegramNamespace::ChatType getChatType(const Peer &peer) const;
     QVariantMap getDialogLastMessageData(const DialogEntry &dialog) const;
     static Role intToRole(int value);
     static Column intToColumn(int value);

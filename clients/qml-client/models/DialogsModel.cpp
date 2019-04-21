@@ -1,13 +1,14 @@
 #include "DialogsModel.hpp"
 
 #include "Client.hpp"
-#include "DataStorage.hpp"
+#include "DataStorage_p.hpp"
 #include "Debug.hpp"
 #include "MessagingApi.hpp"
 #include "DialogList.hpp"
 #include "PendingOperation.hpp"
 
 #include "DeclarativeClient.hpp"
+#include "TelegramNamespace_p.hpp"
 
 #include "ContactsApi.hpp"
 #include "ContactList.hpp"
@@ -34,6 +35,8 @@ QHash<int, QByteArray> DialogsModel::roleNames() const
     static const QHash<int, QByteArray> extraRoles {
         { UserRoleOffset + static_cast<int>(Role::Peer), "peer" },
         { UserRoleOffset + static_cast<int>(Role::DisplayName), "displayName" },
+        { UserRoleOffset + static_cast<int>(Role::ChatType), "chatType" },
+        { UserRoleOffset + static_cast<int>(Role::IsPinned), "isPinned" },
         { UserRoleOffset + static_cast<int>(Role::UnreadMessageCount), "unreadMessageCount" },
         { UserRoleOffset + static_cast<int>(Role::LastMessage), "lastMessage" },
         { UserRoleOffset + static_cast<int>(Role::FormattedLastMessage), "formattedLastMessage" },
@@ -83,13 +86,16 @@ QVariant DialogsModel::getData(int index, DialogsModel::Role role) const
 
     switch (role) {
     case Role::Peer:
-        return QVariant::fromValue(dialog.peer);
-    case Role::PeerTypeIcon:
-        return QVariant::fromValue(dialog.typeIcon);
+        return QVariant::fromValue(dialog.internal->peer);
+    case Role::ChatType:
+        return static_cast<int>(dialog.chatType);
+        return QVariant::fromValue(dialog.chatType);
     case Role::DisplayName:
         return dialog.name;
+    case Role::IsPinned:
+        return dialog.internal->flags & UserDialog::Flags::Pinned;
     case Role::UnreadMessageCount:
-        return dialog.unreadCount;
+        return dialog.internal->unreadCount;
     case Role::FormattedLastMessage:
         return dialog.formattedLastMessage;
     case Role::LastMessage:
@@ -111,15 +117,16 @@ QVariantMap DialogsModel::getDialogLastMessageData(const DialogEntry &dialog) co
     if (dialog.lastChatMessage.id == 0) {
         return {};
     }
+    const Telegram::Message &lastChatMessage = dialog.lastChatMessage;
     QString text;
-    if (dialog.lastChatMessage.type == TelegramNamespace::MessageTypeText) {
-        text = dialog.lastChatMessage.text;
+    if (lastChatMessage.type == TelegramNamespace::MessageTypeText) {
+        text = lastChatMessage.text;
     } else {
         Telegram::MessageMediaInfo info;
-        client()->dataStorage()->getMessageMediaInfo(&info, dialog.peer, dialog.lastChatMessage.id);
-        switch (dialog.lastChatMessage.type) {
+        client()->dataStorage()->getMessageMediaInfo(&info, dialog.internal->peer, lastChatMessage.id);
+        switch (lastChatMessage.type) {
         case TelegramNamespace::MessageTypeWebPage:
-            text = dialog.lastChatMessage.text;
+            text = lastChatMessage.text;
             //text = info.url();
             break;
         case TelegramNamespace::MessageTypeSticker:
@@ -134,10 +141,19 @@ QVariantMap DialogsModel::getDialogLastMessageData(const DialogEntry &dialog) co
         }
     }
 
+    QString senderName;
+    if (lastChatMessage.fromId) {
+        Telegram::UserInfo userInfo;
+        client()->dataStorage()->getUserInfo(&userInfo, lastChatMessage.fromId);
+        senderName = userInfo.firstName();
+    }
+
     return {
-        { "type", static_cast<int>(dialog.lastChatMessage.type) },
+        { "type", static_cast<int>(lastChatMessage.type) },
         { "text", text },
-        { "flags", static_cast<int>(dialog.lastChatMessage.flags / 2) },
+        { "senderName", senderName },
+        { "timestamp", QDateTime::fromSecsSinceEpoch(lastChatMessage.timestamp) },
+        { "flags", static_cast<int>(lastChatMessage.flags / 2) },
     };
 }
 
@@ -184,24 +200,31 @@ QString getPeerAlias(const Telegram::Peer &peer, const Telegram::Client::Client 
 void DialogsModel::onListReady()
 {
     qWarning() << Q_FUNC_INFO;
-#ifdef CONTACTLIST_AS_DIALOGS
-    connect(m_list2, &ContactList::listChanged, this, &DialogsModel::onListChanged);
-#else
-    connect(m_list, &DialogList::listChanged, this, &DialogsModel::onListChanged);
-#endif // CONTACTLIST_AS_DIALOGS
     beginResetModel();
     m_dialogs.clear();
+
 #ifdef CONTACTLIST_AS_DIALOGS
+    connect(m_list2, &ContactList::listChanged, this, &DialogsModel::onListChanged);
     const QVector<Telegram::Peer> peers = m_list2->peers();
-#else
-    const QVector<Telegram::Peer> peers = m_list->peers();
-#endif // CONTACTLIST_AS_DIALOGS
+    addPeer(Peer::fromUserId(client()->dataStorage()->selfUserId()));
     for (const Telegram::Peer &peer : peers) {
         addPeer(peer);
     }
-#ifdef CONTACTLIST_AS_DIALOGS
-    addPeer(Peer::fromUserId(client()->dataStorage()->selfUserId()));
+#else
+    connect(m_list, &DialogList::listChanged, this, &DialogsModel::onListChanged);
+    const QVector<Telegram::Peer> pinned = client()->dataStorage()->pinnedDialogs();
+    for (const Telegram::Peer &peer : pinned) {
+        addPeer(peer);
+    }
+    const QVector<Telegram::Peer> dialogs = client()->dataStorage()->dialogs();
+    for (const Telegram::Peer &peer : dialogs) {
+        if (pinned.contains(peer)) {
+            continue;
+        }
+        addPeer(peer);
+    }
 #endif // CONTACTLIST_AS_DIALOGS
+
     endResetModel();
 }
 
@@ -223,22 +246,39 @@ void DialogsModel::addPeer(const Peer &peer)
 {
     Client *c = client();
     DialogEntry d;
-    d.name = getPeerAlias(peer, c);
-    d.peer = peer;
-
-    Telegram::DialogInfo apiInfo;
-    if (c->dataStorage()->getDialogInfo(&apiInfo, peer)) {
-        d.unreadCount = apiInfo.unreadCount();
-
-        quint32 messageId = apiInfo.lastMessageId();
-        Message message;
-        c->dataStorage()->getMessage(&message, peer, messageId);
-        d.lastChatMessage = message;
-    } else {
-        qDebug() << Q_FUNC_INFO << "Peer" << peer << "has no dialog info in storage";
+    DataInternalApi *internalApi = DataInternalApi::get(client()->dataStorage());
+    UserDialog *dialogData = internalApi->getDialog(peer);
+    if (!dialogData) {
+        qWarning() << Q_FUNC_INFO << "Unknown dialog";
+        return;
     }
+    d.internal = dialogData;
+    d.chatType = getChatType(peer);
+    d.name = getPeerAlias(peer, c);
+    qWarning() << d.name << "type:" << d.chatType;
+    c->dataStorage()->getMessage(&d.lastChatMessage, peer, dialogData->topMessage);
 
     m_dialogs << d;
+}
+
+TelegramNamespace::ChatType DialogsModel::getChatType(const Peer &peer) const
+{
+    if (peer.type == Peer::User) {
+        if (peer.id == client()->dataStorage()->selfUserId()) {
+            return TelegramNamespace::ChatTypeSelfChat;
+        }
+        return TelegramNamespace::ChatTypeDialog;
+    }
+    if (peer.type == Telegram::Peer::Channel) {
+        Telegram::ChatInfo info;
+        if (client()->dataStorage()->getChatInfo(&info, peer)) {
+            if (info.broadcast()) {
+                return TelegramNamespace::ChatTypeBroadcast;
+            }
+        }
+        return TelegramNamespace::ChatTypeGroup;
+    }
+    return TelegramNamespace::ChatTypeMegaGroup;
 }
 
 DialogsModel::Role DialogsModel::intToRole(int value)

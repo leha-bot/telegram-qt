@@ -9,14 +9,16 @@ import ".."
 ItemDelegate {
     id: dialogDelegate
     width: 200
-    property int margin: (peerPicture.width - picture.width) / 2
-    readonly property int defaultMargin: dialogDelegate.margin
 
     property string displayName
     property int unreadMessageCount
     property var timestamp
     property var peer
     property var draft
+    property bool isPinned
+    readonly property bool isGroupChat: (chatType === Telegram.Namespace.ChatTypeGroup)
+                                        || (chatType === Telegram.Namespace.ChatTypeMegaGroup)
+    property int chatType
 
     property var lastMessage
 
@@ -50,24 +52,26 @@ ItemDelegate {
                 anchors.top: parent.top
                 width: parent.width
                 height: displayNameLabel.implicitHeight
-                Rectangle {
-                    id: chatTypeIcon
-                    radius: 4
-                    width: height
-                    height: displayNameLabel.height
-                    visible: model.dialogType === 1
-                    color: "blue"
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+                Row {
+                    spacing: dialogDelegate.smallSpacing
+                    height: displayNameLabel.implicitHeight
+                    Rectangle {
+                        id: chatTypeIcon
+                        radius: 4
+                        width: height
+                        height: displayNameLabel.height
+                        visible: false // func(dialogDelegate.chatType)
+                        color: "blue"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
 
-                InlineHeader {
-                    id: displayNameLabel
-                    anchors.left: chatTypeIcon.visible ? chatTypeIcon.right : parent.left
-                    anchors.leftMargin: chatTypeIcon.visible ? dialogDelegate.smallSpacing : 0
+                    InlineHeader {
+                        id: displayNameLabel
+                        text: dialogDelegate.displayName + dialogDelegate.chatType
+                    }
+                    anchors.left: parent.left
                     anchors.right: deliveryIcon.visible ? deliveryIcon.left : lastMessageDateTime.left
                     anchors.rightMargin: dialogDelegate.spacing
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: dialogDelegate.displayName
                 }
 
                 Rectangle {
@@ -75,7 +79,7 @@ ItemDelegate {
                     width: height
                     height: lastMessageDateTime.font.pixelSize
                     color: "green"
-                    visible: !draft && (typeof(model.lastMessage) != "undefined" && model.lastMessage.flags & 1)
+                    visible: !draft && (typeof(dialogDelegate.lastMessage) != "undefined" && dialogDelegate.lastMessage.flags & 1)
                     anchors.right: lastMessageDateTime.left
                     anchors.rightMargin: dialogDelegate.smallSpacing
                     anchors.verticalCenter: parent.verticalCenter
@@ -91,24 +95,28 @@ ItemDelegate {
 
                     function formatRelativeCurrentDay(date)
                     {
-                        var today = new Date
-                        today.setHours(0,0,0,0)
-                        if (dialogDelegate.timestamp >= today) {
-                            return Qt.formatTime(dialogDelegate.timestamp, "hh:mm")
+                        var referenceDate = new Date
+                        referenceDate.setHours(0,0,0,0)
+                        if (dialogDelegate.timestamp >= referenceDate) {
+                            // Today
+//                            return Qt.formatTime(dialogDelegate.timestamp, "hh:mm")
+                            return dialogDelegate.timestamp.toLocaleTimeString(Qt.locale(), Locale.ShortFormat);
                         }
-                        today.setDate(today.getDate() - 1)
-                        console.log(today)
-                        if (dialogDelegate.timestamp >= today) {
+                        referenceDate.setDate(referenceDate.getDate() - 1)
+                        if (dialogDelegate.timestamp >= referenceDate) {
                             return qsTr("Yesterday")
                         }
-                        today.setDate(today.getDate() - 6)
-                        if (dialogDelegate.timestamp >= today) {
+                        referenceDate.setDate(referenceDate.getDate() - 6)
+                        if (dialogDelegate.timestamp >= referenceDate) {
+                            // Less than a week ago
                             return dialogDelegate.timestamp.toLocaleString(Qt.locale(), "ddd")
                         }
-                        return Qt.formatDateTime(dialogDelegate.timestamp, "d MMM hh:mm")
+                        //return Qt.formatDate(dialogDelegate.timestamp)
+                        //return Qt.formatDateTime(dialogDelegate.timestamp, "d MMM hh:mm")
+                        return dialogDelegate.timestamp.toLocaleDateString(Qt.locale(), Locale.ShortFormat)
                     }
 
-                    text: typeof(dialogDelegate.timestamp) === "undefined" ? "" : formatRelativeCurrentDay(dialogDelegate.timestamp)
+                    text: typeof(dialogDelegate.timestamp) === "undefined" ? "<none>" : formatRelativeCurrentDay(dialogDelegate.timestamp)
                 }
                 Rectangle {
                     opacity: 0.1
@@ -128,9 +136,7 @@ ItemDelegate {
                     elide: Text.ElideRight
                     text: prefixStyledText + contentText
                     anchors.left: parent.left
-                    anchors.rightMargin: unreadIndicator.visible ? dialogDelegate.spacing : 0
-                    //anchors.right: unreadIndicator.visible ? unreadIndicator.left : parent.right
-                    anchors.right: parent.right
+                    anchors.right: dialogIndicator.visible ? dialogIndicator.left : parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     maximumLineCount: 1
 
@@ -147,8 +153,8 @@ ItemDelegate {
                             if (lastMessage.flags & 1) {
                                 return "You: "
                             }
-                            if (model.dialogType === 1) {
-                                return lastMessage.senderFirstName + ": "
+                            if (dialogDelegate.isGroupChat) {
+                                return lastMessage.senderName + ": "
                             }
                         }
                         return ""
@@ -201,11 +207,26 @@ ItemDelegate {
                     }
                     readonly property color emphasedContentColor: palette.link
                 }
-                UnreadMessageIndicator {
-                    id: unreadIndicator
-                    count: dialogDelegate.unreadMessageCount
+
+                Flow {
+                    id: dialogIndicator
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
+
+                    UnreadMessageIndicator {
+                        id: unreadIndicator
+                        count: dialogDelegate.unreadMessageCount
+                    }
+
+                    Text {
+                        id: pinnedIndicator
+                        visible: dialogDelegate.isPinned
+                        text: "<pin>"
+                        color: "gray"
+                        font: lastMessageDateTime.font
+                        height: font.pixelSize
+                        textFormat: Text.PlainText
+                    }
                 }
 
                 Rectangle {
