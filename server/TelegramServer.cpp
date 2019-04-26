@@ -4,6 +4,10 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 
+#include <QJsonDocument>
+
+#include <QFile>
+
 #include "ApiUtils.hpp"
 #include "TelegramServerUser.hpp"
 #include "RemoteClientConnection.hpp"
@@ -35,10 +39,28 @@
 #include "ServerRpcLayer.hpp"
 #include "ServerUtils.hpp"
 #include "Storage.hpp"
-#include "Debug.hpp"
+#include "Debug_p.hpp"
+#include "Utils.hpp"
 
-Q_LOGGING_CATEGORY(loggingCategoryServer, "telegram.server.main", QtInfoMsg)
-Q_LOGGING_CATEGORY(loggingCategoryServerApi, "telegram.server.api", QtWarningMsg)
+#include "TelegramJson_p.hpp"
+
+Q_LOGGING_CATEGORY(loggingCategoryServer, "telegram.server.main", QtDebugMsg)
+Q_LOGGING_CATEGORY(loggingCategoryServerApi, "telegram.server.api", QtDebugMsg)
+
+QJsonValue toJsonValue(const Telegram::UserDialog &userDialog)
+{
+    QJsonObject dialogObject;
+    dialogObject[QLatin1String("peer")] = toJsonValue(userDialog.peer);
+    dialogObject[QLatin1String("pts")] = toJsonValue(userDialog.pts);
+    dialogObject[QLatin1String("topMessage")] = toJsonValue(userDialog.topMessage);
+    dialogObject[QLatin1String("date")] = toJsonValue(userDialog.date);
+    dialogObject[QLatin1String("readInboxMaxId")] = toJsonValue(userDialog.readInboxMaxId);
+    dialogObject[QLatin1String("readOutboxMaxId")] = toJsonValue(userDialog.readOutboxMaxId);
+    dialogObject[QLatin1String("unreadCount")] = toJsonValue(userDialog.unreadCount);
+    dialogObject[QLatin1String("unreadMentionsCount")] = toJsonValue(userDialog.unreadMentionsCount);
+    dialogObject[QLatin1String("draftText")] = toJsonValue(userDialog.draftText);
+    return dialogObject;
+}
 
 namespace Telegram {
 
@@ -121,13 +143,152 @@ void Server::stop()
     }
 }
 
+void Server::saveData() const
+{
+    QJsonObject root;
+    root[QLatin1String("version")] = 1;
+    root[QLatin1String("authKeys")] = toJsonArray(m_authorizations.values());
+
+    {
+        QJsonArray sessionArray;
+        for (const Session *session : m_sessions) {
+            QJsonObject sessionObject;
+            sessionObject[QLatin1String("id")]             = toJsonValue(session->id());
+            sessionObject[QLatin1String("layer")]          = toJsonValue(session->layer());
+            sessionObject[QLatin1String("getServerSalt")]  = toJsonValue(session->getServerSalt());
+            sessionObject[QLatin1String("ip")]             = toJsonValue(session->ip);
+            sessionObject[QLatin1String("timestamp")]      = toJsonValue(session->timestamp);
+            sessionObject[QLatin1String("appId")]          = toJsonValue(session->appId);
+            sessionObject[QLatin1String("appVersion")]     = toJsonValue(session->appVersion);
+            sessionObject[QLatin1String("osInfo")]         = toJsonValue(session->osInfo);
+            sessionObject[QLatin1String("deviceInfo")]     = toJsonValue(session->deviceInfo);
+            sessionObject[QLatin1String("sequenceNumber")] = toJsonValue(session->lastSequenceNumber);
+            sessionObject[QLatin1String("messageNumber")]  = toJsonValue(session->lastMessageNumber);
+            sessionObject[QLatin1String("systemLanguage")] = toJsonValue(session->systemLanguage);
+            sessionObject[QLatin1String("languagePack")]   = toJsonValue(session->languagePack);
+            sessionObject[QLatin1String("languageCode")]   = toJsonValue(session->languageCode);
+            sessionArray.append(sessionObject);
+        }
+        root[QLatin1String("sessions")] = sessionArray;
+    }
+
+    {
+        QJsonArray usersArray;
+        for (const LocalUser *user : m_users) {
+            QJsonObject userObject;
+            userObject[QLatin1String("id")] = toJsonValue(user->id());
+            userObject[QLatin1String("phoneNumber")] = user->phoneNumber();
+            userObject[QLatin1String("firstName")] = user->firstName();
+            userObject[QLatin1String("lastName")] = user->lastName();
+            if (!user->userName().isEmpty()) {
+                userObject[QLatin1String("userName")] = user->userName();
+            }
+
+            QJsonArray sessionArray;
+            for (const Session *session : user->sessions()) {
+                sessionArray.append(toJsonValue(session->id()));
+            }
+            userObject[QLatin1String("sessions")] = sessionArray;
+            userObject[QLatin1String("authorizations")] = toJsonArray(user->authorizations());
+
+            const QHash<quint32,quint64> messageKeys = user->getPostBox()->getAllMessageKeys();
+            QJsonObject messages;
+            for (quint32 i = 0; i <= user->getPostBox()->lastMessageId(); ++i) {
+                messages[QString::number(i)] = toJsonValue(messageKeys.value(i));
+            }
+
+            userObject[QLatin1String("messages")] = messages;
+
+            const QVector<UserDialog *> dialogs = user->dialogs();
+            QJsonArray dialogArray;
+            for (const UserDialog *dialog : dialogs) {
+                dialogArray.append(toJsonValue(*dialog));
+            }
+            userObject[QLatin1String("dialogs")] = dialogArray;
+            usersArray.append(userObject);
+        }
+        root[QLatin1String("users")] = usersArray;
+    }
+
+    QFile data(QStringLiteral("server%1.json").arg(dcId()));
+    data.open(QIODevice::WriteOnly);
+    data.write(QJsonDocument(root).toJson());
+}
+
 void Server::loadData()
 {
-    const int number = 10;
-    for (int i = 0; i < number; ++i) {
-        LocalUser *newUser = new LocalUser();
-        newUser->setPhoneNumber(QStringLiteral("%1").arg(i, 6, 10, QLatin1Char('0')));
-        insertUser(newUser);
+    QFile data(QStringLiteral("server%1.json").arg(dcId()));
+    data.open(QIODevice::ReadOnly);
+    const QJsonObject root = QJsonDocument::fromJson(data.readAll()).object();
+
+    {
+        const QJsonArray authKeysArray = root.value(QLatin1String("authKeys")).toArray();
+        for (const QJsonValue &authKeyValue : authKeysArray) {
+            const QByteArray authKey = fromJson<QByteArray>(authKeyValue);
+            const quint64 keyId = Telegram::Utils::getFingerprints(authKey, Telegram::Utils::Lower64Bits);
+            registerAuthKey(keyId, authKey);
+        }
+    }
+
+    {
+        const QJsonArray sessionArray = root.value(QLatin1String("sessions")).toArray();
+        for (const QJsonValue &sessionArrayValue : sessionArray) {
+            const QJsonObject sessionObject = sessionArrayValue.toObject();
+
+            quint64 sessionId = fromJson<quint64>(sessionObject[QLatin1String("id")]);
+
+            Session *session = addSession(sessionId);
+            session->setLayer(fromJson<quint32>(sessionObject[QLatin1String("layer")]));
+            session->setInitialServerSalt(fromJson<quint64>(sessionObject[QLatin1String("getServerSalt")]));
+
+            fromJson(&session->ip, sessionObject[QLatin1String("ip")]);
+            fromJson(&session->timestamp, sessionObject[QLatin1String("timestamp")]);
+            fromJson(&session->appId, sessionObject[QLatin1String("appId")]);
+            fromJson(&session->appVersion, sessionObject[QLatin1String("appVersion")]);
+            fromJson(&session->osInfo, sessionObject[QLatin1String("osInfo")]);
+            fromJson(&session->deviceInfo, sessionObject[QLatin1String("deviceInfo")]);
+            fromJson(&session->lastSequenceNumber, sessionObject[QLatin1String("lastSequenceNumber")]);
+            fromJson(&session->lastMessageNumber, sessionObject[QLatin1String("lastMessageNumber")]);
+            fromJson(&session->systemLanguage, sessionObject[QLatin1String("systemLanguage")]);
+            fromJson(&session->languagePack, sessionObject[QLatin1String("languagePack")]);
+            fromJson(&session->languageCode, sessionObject[QLatin1String("languageCode")]);
+        }
+    }
+
+    {
+        const QJsonArray usersArray = root.value(QLatin1String("users")).toArray();
+        for (const QJsonValue &userValue : usersArray) {
+            const QJsonObject userObject = userValue.toObject();
+
+            const quint32 userId = fromJson<quint32>(userObject[QLatin1String("id")]);
+            const QString phoneNumber = fromJson<QString>(userObject[QLatin1String("phoneNumber")]);
+
+            LocalUser *user = new LocalUser(userId, phoneNumber);
+            user->setDcId(dcId());
+            user->setFirstName(userObject[QLatin1String("firstName")].toString());
+            user->setLastName(userObject[QLatin1String("lastName")].toString());
+            user->setUserName(userObject[QLatin1String("userName")].toString());
+            insertUser(user);
+
+            const QJsonArray sessionArray = userObject[QLatin1String("sessions")].toArray();
+            const QVector<quint64> sessions = fromJson< QVector<quint64> >(sessionArray);
+            for (const quint64 &sessionId : sessions) {
+                Session *session = getSessionById(sessionId);
+                if (!session) {
+                    continue;
+                }
+                user->addSession(session);
+            }
+            const QJsonArray authorizationsArray = userObject[QLatin1String("authorizations")].toArray();
+            const QVector<quint64> authKeys = fromJson< QVector<quint64> >(authorizationsArray);
+
+            for (const quint64 &authKeyId : authKeys) {
+                if (getAuthKeyById(authKeyId).isEmpty()) {
+                    continue;
+                }
+                addUserAuthorization(user, authKeyId);
+            }
+        }
     }
 }
 

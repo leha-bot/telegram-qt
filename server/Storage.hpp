@@ -37,6 +37,10 @@ class Storage : public QObject
     Q_OBJECT
 public:
     explicit Storage(QObject *parent = nullptr);
+
+    void saveData();
+    void loadData();
+
     MessageData *addMessage(quint32 fromId, Peer toPeer, const QString &text);
     MessageData *addMessageMedia(quint32 fromId, Peer toPeer, const MediaData &media);
     const MessageData *getMessage(quint64 globalId);

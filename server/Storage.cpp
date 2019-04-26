@@ -44,6 +44,25 @@ Storage::Storage(QObject *parent) :
 {
 }
 
+void Storage::saveData()
+{
+    QJsonObject root;
+    root[QLatin1String("version")] = 1;
+    QJsonArray messagesArray;
+    for (const MessageData &messageData : m_messages) {
+        messagesArray.append(toJsonValue(messageData));
+    }
+    root[QLatin1String("messages")] = messagesArray;
+
+    QFile data(QStringLiteral("messages.json"));
+    data.open(QIODevice::WriteOnly);
+    data.write(QJsonDocument(root).toJson());
+}
+
+void Storage::loadData()
+{
+}
+
 MessageData *Storage::addMessage(quint32 fromId, Peer toPeer, const QString &text)
 {
     ++m_lastGlobalId;

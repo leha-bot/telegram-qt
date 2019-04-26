@@ -41,6 +41,7 @@ public:
 
     bool start();
     void stop();
+    void saveData() const;
     void loadData();
 
     void setServerConfiguration(const DcConfiguration &config);
