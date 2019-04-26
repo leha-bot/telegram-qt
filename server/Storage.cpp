@@ -26,6 +26,24 @@
 #include <QImage>
 #include <QLoggingCategory>
 
+#include <QJsonDocument>
+#include <QJsonObject>
+
+#include "TelegramJson_p.hpp"
+
+QJsonValue toJsonValue(const Telegram::Server::MessageData &messageData)
+{
+    QJsonObject messageObject;
+    messageObject[QLatin1String("id")] = toJsonValue(messageData.globalId());
+    messageObject[QLatin1String("date64")] = toJsonValue(messageData.date64());
+    messageObject[QLatin1String("toPeer")] = toJsonValue(messageData.toPeer());
+    messageObject[QLatin1String("fromId")] = toJsonValue(messageData.fromId());
+    if (!messageData.text().isEmpty()) {
+        messageObject[QLatin1String("text")] = toJsonValue(messageData.text());
+    }
+    return messageObject;
+}
+
 static const QString c_storageFileDir = QLatin1String("storage/volume%1");
 
 namespace Telegram {
