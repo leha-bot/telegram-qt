@@ -29,6 +29,7 @@ set(telegram_qt_SOURCES
     DhLayer.cpp
     DialogList.cpp
     FileRequestDescriptor.cpp
+    FilesApi.cpp
     IgnoredMessageNotification.cpp
     LegacySecretReader.cpp
     MessagingApi.cpp
@@ -76,6 +77,8 @@ set(telegram_qt_META_HEADERS
     DataStorage_p.hpp
     DhLayer.hpp
     DialogList.hpp
+    FilesApi.hpp
+    FilesApi_p.hpp
     LegacySecretReader.hpp
     MessagingApi.hpp
     MessagingApi_p.hpp
@@ -145,6 +148,7 @@ set(telegram_qt_public_HEADERS
     DcConfiguration.hpp
     Debug.hpp
     DialogList.hpp
+    FilesApi.hpp
     MessagingApi.hpp
     Operations/ClientAuthOperation.hpp
     Operations/PendingContactsOperation.hpp

@@ -60,6 +60,7 @@ SOURCES += \
     ContactsApi.cpp \
     DataStorage.cpp \
     IgnoredMessageNotification.cpp \
+    FilesApi.cpp \
     RpcError.cpp \
     RpcLayer.cpp \
     RsaKey.cpp \
@@ -95,6 +96,7 @@ PUBLIC_HEADERS += \
     ContactsApi.hpp \
     Debug.hpp \
     DialogList.hpp \
+    FilesApi.hpp \
     MessagingApi.hpp \
     ReadyObject.hpp \
     RsaKey.hpp \
@@ -134,6 +136,8 @@ HEADERS += \
     DataStorage.hpp \
     DataStorage_p.hpp \
     IgnoredMessageNotification.hpp \
+    FilesApi.hpp \
+    FilesApi_p.hpp \
     MessagingApi.hpp \
     MessagingApi_p.hpp \
     ReadyObject.hpp \
