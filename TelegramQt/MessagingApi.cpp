@@ -12,6 +12,8 @@
 #include "Operations/PendingMessages.hpp"
 #include "Operations/PendingMessages_p.hpp"
 
+#include "TLTypesDebug.hpp"
+
 #include <QLoggingCategory>
 
 namespace Telegram {

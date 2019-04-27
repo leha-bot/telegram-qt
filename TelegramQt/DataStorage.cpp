@@ -598,6 +598,7 @@ UserDialog *DataInternalApi::ensureDialog(const Peer &peer)
     UserDialog *dialog = getDialog(peer);
     if (!dialog) {
         dialog = new UserDialog();
+        qWarning() << Q_FUNC_INFO << "New dialog for peer" << peer;
         dialog->peer = peer;
         m_dialogs.append(dialog);
     }
