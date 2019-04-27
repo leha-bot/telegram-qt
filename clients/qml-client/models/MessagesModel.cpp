@@ -504,16 +504,17 @@ void MessagesModel::onPeerChanged()
     beginResetModel();
     qDeleteAll(m_events);
     m_events.clear();
-    endResetModel();
-
     m_oldestMessageId = 0;
+    endResetModel();
 
     if (!m_peer.isValid()) {
         return;
     }
 
     DialogInfo info;
-    dataStorage()->getDialogInfo(&info, m_peer);
+    if (!dataStorage()->getDialogInfo(&info, m_peer)) {
+        qWarning() << Q_FUNC_INFO << "No dialog!";
+    }
 
     m_oldestMessageId = info.lastMessageId();
 
